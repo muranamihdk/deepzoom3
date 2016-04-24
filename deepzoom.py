@@ -243,24 +243,24 @@ class DeepZoomCollection(object):
         descriptor.open(path)
         files_path = _get_or_create_path(_get_files_path(self.source))
         for level in reversed(xrange(self.max_level + 1)):
-            level_path = _get_or_create_path('%s/%s'%(files_path, level))
+            level_path = _get_or_create_path('{}/{}'.format(files_path, level))
             level_size = 2**level
             images_per_tile = int(math.floor(self.tile_size / level_size))
             column, row = self.get_tile_position(i, level, self.tile_size)
-            tile_path = '%s/%s_%s.%s'%(level_path, column, row, self.tile_format)
+            tile_path = '{}/{}_{}.{}'.format(level_path, column, row, self.tile_format)
             if not os.path.exists(tile_path):
                 tile_image = PIL.Image.new('RGB', (self.tile_size, self.tile_size))
                 q = int(self.image_quality * 100)
                 tile_image.save(tile_path, 'JPEG', quality=q)
             tile_image = PIL.Image.open(tile_path)
-            source_path = '%s/%s/%s_%s.%s'%(_get_files_path(path), level, 0, 0,
+            source_path = '{}/{}/{}_{}.{}'.format(_get_files_path(path), level, 0, 0,
                                             descriptor.tile_format)
             # Local
             if os.path.exists(source_path):
                 try:
                     source_image = PIL.Image.open(safe_open(source_path))
                 except IOError:
-                    warnings.warn('Skipped invalid level: %s' % source_path)
+                    warnings.warn('Skipped invalid level: {}'.format(source_path))
                     continue
             # Remote
             else:
@@ -268,7 +268,7 @@ class DeepZoomCollection(object):
                     try:
                         source_image = PIL.Image.open(safe_open(source_path))
                     except IOError:
-                        warnings.warn('Skipped invalid image: %s' % source_path)
+                        warnings.warn('Skipped invalid image: {}'.format(source_path))
                         return
                     # Expected width & height of the tile
                     e_w, e_h = descriptor.get_dimensions(level)
@@ -390,7 +390,7 @@ class ImageCreator(object):
                 tile = level_image.crop(bounds)
                 format = self.descriptor.tile_format
                 tile_path = os.path.join(level_dir,
-                                         '%s_%s.%s'%(column, row, format))
+                                         '{}_{}.{}'.format(column, row, format))
                 with open(tile_path, 'wb') as tile_file:
                     if self.descriptor.tile_format == 'jpg':
                         jpeg_quality = int(self.image_quality * 100)
