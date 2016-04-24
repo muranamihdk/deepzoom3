@@ -3,6 +3,9 @@
 .*~
 *~
 
+# openseadoragon environment for test
+test_env/
+
 # deep zoom examples
 *_files/
 *.dzi
