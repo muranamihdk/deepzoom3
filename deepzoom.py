@@ -395,8 +395,8 @@ class ImageCreator(object):
                     if self.descriptor.tile_format == 'jpg':
                         jpeg_quality = int(self.image_quality * 100)
                         tile.save(tile_file, 'JPEG', quality=jpeg_quality)
-                else:
-                    tile.save(tile_file, self.descriptor.tile_format.upper())
+                    else:
+                        tile.save(tile_file, self.descriptor.tile_format.upper())
         # Create descriptor
         self.descriptor.save(destination)
 
