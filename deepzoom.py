@@ -92,21 +92,20 @@ class DeepZoomImageDescriptor(object):
 
     def save(self, destination):
         """Save descriptor file."""
-        file = open(destination, 'w')
-        doc = xml.dom.minidom.Document()
-        image = doc.createElementNS(NS_DEEPZOOM, 'Image')
-        image.setAttribute('xmlns', NS_DEEPZOOM)
-        image.setAttribute('TileSize', str(self.tile_size))
-        image.setAttribute('Overlap', str(self.tile_overlap))
-        image.setAttribute('Format', str(self.tile_format))
-        size = doc.createElementNS(NS_DEEPZOOM, 'Size')
-        size.setAttribute('Width', str(self.width))
-        size.setAttribute('Height', str(self.height))
-        image.appendChild(size)
-        doc.appendChild(image)
-        descriptor = doc.toxml(encoding='UTF-8')
-        file.write(descriptor)
-        file.close()
+        with open(destination, 'w') as f:
+            doc = xml.dom.minidom.Document()
+            image = doc.createElementNS(NS_DEEPZOOM, 'Image')
+            image.setAttribute('xmlns', NS_DEEPZOOM)
+            image.setAttribute('TileSize', str(self.tile_size))
+            image.setAttribute('Overlap', str(self.tile_overlap))
+            image.setAttribute('Format', str(self.tile_format))
+            size = doc.createElementNS(NS_DEEPZOOM, 'Size')
+            size.setAttribute('Width', str(self.width))
+            size.setAttribute('Height', str(self.height))
+            image.appendChild(size)
+            doc.appendChild(image)
+            descriptor = doc.toxml()
+            f.write(descriptor)
 
     @classmethod
     def remove(self, filename):
@@ -392,10 +391,10 @@ class ImageCreator(object):
                 format = self.descriptor.tile_format
                 tile_path = os.path.join(level_dir,
                                          '%s_%s.%s'%(column, row, format))
-                tile_file = open(tile_path, 'wb')
-                if self.descriptor.tile_format == 'jpg':
-                    jpeg_quality = int(self.image_quality * 100)
-                    tile.save(tile_file, 'JPEG', quality=jpeg_quality)
+                with open(tile_path, 'wb') as tile_file:
+                    if self.descriptor.tile_format == 'jpg':
+                        jpeg_quality = int(self.image_quality * 100)
+                        tile.save(tile_file, 'JPEG', quality=jpeg_quality)
                 else:
                     tile.save(tile_file)
         # Create descriptor
@@ -472,7 +471,8 @@ def _remove(path):
 
 @retry(6)
 def safe_open(path):
-    return io.BytesIO(open(path, 'rb').read())
+    with open(path, 'rb') as f:
+        return io.BytesIO(f.read())
 
 ################################################################################
 
