@@ -41,13 +41,7 @@ import argparse
 import os
 import PIL.Image
 import shutil
-
-try:
-    import cStringIO
-    StringIO = cStringIO
-except ImportError:
-    import StringIO
-
+import io
 import sys
 import time
 import warnings
@@ -478,7 +472,7 @@ def _remove(path):
 
 @retry(6)
 def safe_open(path):
-    return StringIO.StringIO(open(path).read())
+    return io.BytesIO(open(path, 'rb').read())
 
 ################################################################################
 
