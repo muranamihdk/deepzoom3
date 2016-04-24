@@ -16,5 +16,4 @@ setup (
     ],
     keywords='deepzoom seadragon dzi dzc seadragonajax seadragonmobile silverlightdeepzoom microsoft openzoom',
     py_modules=['deepzoom'],
-    install_requires=['pillow'],
 )
