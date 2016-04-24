@@ -37,20 +37,13 @@
 #
 
 import math
-import optparse
+import argparse
 import os
 import PIL.Image
 import shutil
-
-try:
-    import cStringIO
-    StringIO = cStringIO
-except ImportError:
-    import StringIO
-
+import io
 import sys
 import time
-import urllib
 import warnings
 import xml.dom.minidom
 
@@ -99,21 +92,20 @@ class DeepZoomImageDescriptor(object):
 
     def save(self, destination):
         """Save descriptor file."""
-        file = open(destination, 'w')
-        doc = xml.dom.minidom.Document()
-        image = doc.createElementNS(NS_DEEPZOOM, 'Image')
-        image.setAttribute('xmlns', NS_DEEPZOOM)
-        image.setAttribute('TileSize', str(self.tile_size))
-        image.setAttribute('Overlap', str(self.tile_overlap))
-        image.setAttribute('Format', str(self.tile_format))
-        size = doc.createElementNS(NS_DEEPZOOM, 'Size')
-        size.setAttribute('Width', str(self.width))
-        size.setAttribute('Height', str(self.height))
-        image.appendChild(size)
-        doc.appendChild(image)
-        descriptor = doc.toxml(encoding='UTF-8')
-        file.write(descriptor)
-        file.close()
+        with open(destination, 'w') as f:
+            doc = xml.dom.minidom.Document()
+            image = doc.createElementNS(NS_DEEPZOOM, 'Image')
+            image.setAttribute('xmlns', NS_DEEPZOOM)
+            image.setAttribute('TileSize', str(self.tile_size))
+            image.setAttribute('Overlap', str(self.tile_overlap))
+            image.setAttribute('Format', str(self.tile_format))
+            size = doc.createElementNS(NS_DEEPZOOM, 'Size')
+            size.setAttribute('Width', str(self.width))
+            size.setAttribute('Height', str(self.height))
+            image.appendChild(size)
+            doc.appendChild(image)
+            descriptor = doc.toxml()
+            f.write(descriptor)
 
     @classmethod
     def remove(self, filename):
@@ -250,25 +242,25 @@ class DeepZoomCollection(object):
         descriptor = DeepZoomImageDescriptor()
         descriptor.open(path)
         files_path = _get_or_create_path(_get_files_path(self.source))
-        for level in reversed(xrange(self.max_level + 1)):
-            level_path = _get_or_create_path('%s/%s'%(files_path, level))
+        for level in reversed(range(self.max_level + 1)):
+            level_path = _get_or_create_path('{}/{}'.format(files_path, level))
             level_size = 2**level
             images_per_tile = int(math.floor(self.tile_size / level_size))
             column, row = self.get_tile_position(i, level, self.tile_size)
-            tile_path = '%s/%s_%s.%s'%(level_path, column, row, self.tile_format)
+            tile_path = '{}/{}_{}.{}'.format(level_path, column, row, self.tile_format)
             if not os.path.exists(tile_path):
                 tile_image = PIL.Image.new('RGB', (self.tile_size, self.tile_size))
                 q = int(self.image_quality * 100)
                 tile_image.save(tile_path, 'JPEG', quality=q)
             tile_image = PIL.Image.open(tile_path)
-            source_path = '%s/%s/%s_%s.%s'%(_get_files_path(path), level, 0, 0,
+            source_path = '{}/{}/{}_{}.{}'.format(_get_files_path(path), level, 0, 0,
                                             descriptor.tile_format)
             # Local
             if os.path.exists(source_path):
                 try:
                     source_image = PIL.Image.open(safe_open(source_path))
                 except IOError:
-                    warnings.warn('Skipped invalid level: %s' % source_path)
+                    warnings.warn('Skipped invalid level: {}'.format(source_path))
                     continue
             # Remote
             else:
@@ -276,7 +268,7 @@ class DeepZoomCollection(object):
                     try:
                         source_image = PIL.Image.open(safe_open(source_path))
                     except IOError:
-                        warnings.warn('Skipped invalid image: %s' % source_path)
+                        warnings.warn('Skipped invalid image: {}'.format(source_path))
                         return
                     # Expected width & height of the tile
                     e_w, e_h = descriptor.get_dimensions(level)
@@ -303,7 +295,7 @@ class DeepZoomCollection(object):
         """Returns position (column, row) from given Z-order (Morton number.)"""
         column = 0
         row = 0
-        for i in xrange(0, 32, 2):
+        for i in range(0, 32, 2):
             offset = i / 2
             # column
             column_offset = i
@@ -320,7 +312,7 @@ class DeepZoomCollection(object):
     def get_z_order(self, column, row):
         """Returns the Z-order (Morton number) from given position."""
         z_order = 0
-        for i in xrange(32):
+        for i in range(32):
             z_order |= (column & 1 << i) << i | (row & 1 << i) << (i + 1)
         return z_order
 
@@ -375,8 +367,8 @@ class ImageCreator(object):
     def tiles(self, level):
         """Iterator for all tiles in the given level. Returns (column, row) of a tile."""
         columns, rows = self.descriptor.get_num_tiles(level)
-        for column in xrange(columns):
-            for row in xrange(rows):
+        for column in range(columns):
+            for row in range(rows):
                 yield (column, row)
 
     def create(self, source, destination):
@@ -390,7 +382,7 @@ class ImageCreator(object):
                                                   tile_format=self.tile_format)
         # Create tiles
         image_files = _get_or_create_path(_get_files_path(destination))
-        for level in xrange(self.descriptor.num_levels):
+        for level in range(self.descriptor.num_levels):
             level_dir = _get_or_create_path(os.path.join(image_files, str(level)))
             level_image = self.get_image(level)
             for (column, row) in self.tiles(level):
@@ -398,13 +390,13 @@ class ImageCreator(object):
                 tile = level_image.crop(bounds)
                 format = self.descriptor.tile_format
                 tile_path = os.path.join(level_dir,
-                                         '%s_%s.%s'%(column, row, format))
-                tile_file = open(tile_path, 'wb')
-                if self.descriptor.tile_format == 'jpg':
-                    jpeg_quality = int(self.image_quality * 100)
-                    tile.save(tile_file, 'JPEG', quality=jpeg_quality)
-                else:
-                    tile.save(tile_file)
+                                         '{}_{}.{}'.format(column, row, format))
+                with open(tile_path, 'wb') as tile_file:
+                    if self.descriptor.tile_format == 'jpg':
+                        jpeg_quality = int(self.image_quality * 100)
+                        tile.save(tile_file, 'JPEG', quality=jpeg_quality)
+                    else:
+                        tile.save(tile_file, self.descriptor.tile_format.upper())
         # Create descriptor
         self.descriptor.save(destination)
 
@@ -447,7 +439,7 @@ def retry(attempts, backoff=2):
     def deco_retry(f):
         def f_retry(*args, **kwargs):
             last_exception = None
-            for _ in xrange(attempts):
+            for _ in range(attempts):
                 try:
                     return f(*args, **kwargs)
                 except Exception as exception:
@@ -479,47 +471,49 @@ def _remove(path):
 
 @retry(6)
 def safe_open(path):
-    return StringIO.StringIO(urllib.urlopen(path).read())
+    with open(path, 'rb') as f:
+        return io.BytesIO(f.read())
 
 ################################################################################
 
 def main():
-    parser = optparse.OptionParser(usage='Usage: %prog [options] filename')
-
-    parser.add_option('-d', '--destination', dest='destination',
-                      help='Set the destination of the output.')
-    parser.add_option('-s', '--tile_size', dest='tile_size', type='int',
-                      default=254, help='Size of the tiles. Default: 254')
-    parser.add_option('-f', '--tile_format', dest='tile_format',
-                      default=DEFAULT_IMAGE_FORMAT, help='Image format of the tiles (jpg or png). Default: jpg')
-    parser.add_option('-o', '--tile_overlap', dest='tile_overlap', type='int',
-                      default=1, help='Overlap of the tiles in pixels (0-10). Default: 1')
-    parser.add_option('-q', '--image_quality', dest='image_quality', type='float',
-                      default=0.8, help='Quality of the image output (0-1). Default: 0.8')
-    parser.add_option('-r', '--resize_filter', dest='resize_filter', default=DEFAULT_RESIZE_FILTER,
-                      help='Type of filter for resizing (bicubic, nearest, bilinear, antialias (best). Default: antialias')
-
-    (options, args) = parser.parse_args()
+    parser = argparse.ArgumentParser(description='Usage: %(prog)s [options] filename')
+    parser.add_argument('source', metavar='filename', type=str,
+                help='a source image file name')
+    parser.add_argument('-d', '--destination', dest='destination',
+                help='Set the destination of the output.')
+    parser.add_argument('-s', '--tile_size', dest='tile_size', type=int,
+                default=254, help='Size of the tiles. Default: 254')
+    parser.add_argument('-f', '--tile_format', dest='tile_format',
+                default=DEFAULT_IMAGE_FORMAT, help='Image format of the tiles (jpg or png). Default: jpg')
+    parser.add_argument('-o', '--tile_overlap', dest='tile_overlap', type=int,
+                default=1, help='Overlap of the tiles in pixels (0-10). Default: 1')
+    parser.add_argument('-q', '--image_quality', dest='image_quality', type=float,
+                default=0.8, help='Quality of the image output (0-1). Default: 0.8')
+    parser.add_argument('-r', '--resize_filter', dest='resize_filter',
+                default=DEFAULT_RESIZE_FILTER,
+                help='Type of filter for resizing (bicubic, nearest, bilinear, antialias (best). Default: antialias')
+    args = parser.parse_args()
 
     if not args:
         parser.print_help()
         sys.exit(1)
 
-    source = args[0]
+    source = args.source
 
-    if not options.destination:
+    if not args.destination:
         if os.path.exists(source):
-            options.destination = os.path.splitext(source)[0] + '.dzi'
+            args.destination = os.path.splitext(source)[0] + '.dzi'
         else:
-            options.destination = os.path.splitext(os.path.basename(source))[0] + '.dzi'
-    if options.resize_filter and options.resize_filter in RESIZE_FILTERS:
-        options.resize_filter = RESIZE_FILTERS[options.resize_filter]
+            args.destination = os.path.splitext(os.path.basename(source))[0] + '.dzi'
+    if args.resize_filter and args.resize_filter in RESIZE_FILTERS:
+        args.resize_filter = RESIZE_FILTERS[args.resize_filter]
 
-    creator = ImageCreator(tile_size=options.tile_size,
-                           tile_format=options.tile_format,
-                           image_quality=options.image_quality,
-                           resize_filter=options.resize_filter)
-    creator.create(source, options.destination)
+    creator = ImageCreator(tile_size=args.tile_size,
+                           tile_format=args.tile_format,
+                           image_quality=args.image_quality,
+                           resize_filter=args.resize_filter)
+    creator.create(source, args.destination)
 
 if __name__ == '__main__':
     main()
