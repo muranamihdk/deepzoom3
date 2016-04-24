@@ -50,7 +50,6 @@ except ImportError:
 
 import sys
 import time
-import urllib
 import warnings
 import xml.dom.minidom
 
@@ -479,7 +478,7 @@ def _remove(path):
 
 @retry(6)
 def safe_open(path):
-    return StringIO.StringIO(urllib.urlopen(path).read())
+    return StringIO.StringIO(open(path).read())
 
 ################################################################################
 
