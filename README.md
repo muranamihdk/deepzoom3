@@ -7,4 +7,3 @@ This is forked from [deepzoom.py](https://github.com/openzoom/deepzoom.py) for s
     git clone https://github.com/muranamihdk/deepzoom3.git
     cd deepzoom3
     python setup.py install
-    pip install pillow
